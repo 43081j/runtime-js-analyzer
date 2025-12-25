@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@ast-grep/napi": "^0.40.3",
+    "@clack/prompts": "^1.0.0-alpha.9",
     "playwright": "^1.57.0"
   }
 }
