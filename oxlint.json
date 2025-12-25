@@ -3,5 +3,5 @@
     "correctness": "error",
     "suspicious": "error",
     "perf": "warn"
-  },
+  }
 }
