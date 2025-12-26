@@ -39,10 +39,12 @@ async function main() {
       prompts.log.message(`  Bundlers: ${analysis.bundlers.join(', ')}`);
     }
 
-    prompts.log.info('Custom Elements');
-    prompts.log.message(
-      `  Found ${analysis.customElements.customElementCount} custom element definition(s)`
-    );
+    if (analysis.customElements.customElementCount > 0) {
+      prompts.log.info('Custom Elements');
+      prompts.log.message(
+        `  Found ${analysis.customElements.customElementCount} custom element definition(s)`
+      );
+    }
 
     if (analysis.bundlerAnalysis.webpack) {
       prompts.log.info('Webpack Analysis');
