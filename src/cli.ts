@@ -33,8 +33,10 @@ async function main() {
 
     prompts.log.info('Project');
     prompts.log.message(`  URL: ${url}`);
-    if (analysis.webpack) {
-      prompts.log.message('  Bundler: webpack');
+    if (analysis.bundlers.length === 1) {
+      prompts.log.message(`  Bundler: ${analysis.bundlers[0]}`);
+    } else if (analysis.bundlers.length > 1) {
+      prompts.log.message(`  Bundlers: ${analysis.bundlers.join(', ')}`);
     }
 
     prompts.log.info('Custom Elements');
@@ -42,10 +44,10 @@ async function main() {
       `  Found ${analysis.customElements.customElementCount} custom element definition(s)`
     );
 
-    if (analysis.webpack) {
+    if (analysis.bundlerAnalysis.webpack) {
       prompts.log.info('Webpack Analysis');
       prompts.log.message(
-        `  Duplicate functions: ${analysis.webpack.duplicateFunctionCount}`
+        `  Duplicate functions: ${analysis.bundlerAnalysis.webpack.duplicateFunctionCount}`
       );
     }
 

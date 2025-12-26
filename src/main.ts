@@ -7,26 +7,25 @@ import {createHash} from 'node:crypto';
 import {pipeline} from 'node:stream/promises';
 import {Readable} from 'node:stream';
 import {ts} from '@ast-grep/napi';
-import {
-  createWebpackAnalyzer,
-  type WebPackAnalysisResult
-} from './analyzers/webpack.js';
-import {
-  createCustomElementAnalyzer,
-  type CustomElementAnalysisResult
-} from './analyzers/customElement.js';
+import {createWebpackAnalyzer} from './analyzers/webpack.js';
+import {createCustomElementAnalyzer} from './analyzers/customElement.js';
+import {createRolldownAnalyzer} from './analyzers/rolldown.js';
+import type {
+  ExtractedScript,
+  ExtractedScriptResult,
+  AnalysisResult
+} from './types.js';
 
 const TEMP_DIR_PREFIX = 'runtime-js-scan-';
 
-export interface ExtractedScript {
-  url: string;
-  filePath: string;
-}
-
-export interface ExtractedScriptResult {
-  scripts: ExtractedScript[];
-  tempDir: string;
-}
+export type {
+  Bundler,
+  ExtractedScript,
+  ExtractedScriptResult,
+  AnalysisResult,
+  WebPackAnalysisResult,
+  CustomElementAnalysisResult
+} from './types.js';
 
 export async function extractScripts(
   url: string
@@ -99,16 +98,14 @@ export async function extractScripts(
   return {scripts, tempDir};
 }
 
-export interface AnalysisResult {
-  webpack: WebPackAnalysisResult | null;
-  customElements: CustomElementAnalysisResult;
-}
-
 export async function analyzeScripts(
   scripts: ExtractedScript[]
 ): Promise<AnalysisResult> {
-  const webpackAnalyzer = createWebpackAnalyzer();
-  const customElementAnalyzer = createCustomElementAnalyzer();
+  const analyzers = [
+    createWebpackAnalyzer(),
+    createRolldownAnalyzer(),
+    createCustomElementAnalyzer()
+  ];
 
   for (const script of scripts) {
     let ast;
@@ -121,12 +118,25 @@ export async function analyzeScripts(
     }
 
     const root = ast.root();
-    webpackAnalyzer.analyze(root);
-    customElementAnalyzer.analyze(root);
+    for (const analyzer of analyzers) {
+      analyzer.analyze(root, script);
+    }
   }
 
-  return {
-    webpack: webpackAnalyzer.summary(),
-    customElements: customElementAnalyzer.summary()
+  let result: AnalysisResult = {
+    bundlers: [],
+    bundlerAnalysis: {},
+    customElements: {customElementCount: 0}
   };
+
+  for (const analyzer of analyzers) {
+    const partial = await analyzer.getResult();
+    result = {
+      bundlers: [...result.bundlers, ...(partial.bundlers || [])],
+      bundlerAnalysis: {...result.bundlerAnalysis, ...partial.bundlerAnalysis},
+      customElements: {...result.customElements, ...partial.customElements}
+    };
+  }
+
+  return result;
 }

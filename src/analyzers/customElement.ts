@@ -24,17 +24,19 @@ const customElementRule: NapiConfig = {
   }
 };
 
-export function createCustomElementAnalyzer(): Analyzer<CustomElementAnalysisResult> {
+export function createCustomElementAnalyzer(): Analyzer {
   let customElementCount = 0;
 
   return {
-    analyze(root) {
+    analyze(root, _script) {
       const customElements = root.findAll(customElementRule);
       customElementCount += customElements.length;
     },
 
-    summary() {
-      return {customElementCount};
+    async getResult() {
+      return {
+        customElements: {customElementCount}
+      };
     }
   };
 }

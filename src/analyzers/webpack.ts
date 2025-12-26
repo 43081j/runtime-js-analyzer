@@ -2,10 +2,6 @@ import {createHash} from 'node:crypto';
 import {type NapiConfig} from '@ast-grep/napi';
 import {type Analyzer} from './types.js';
 
-export interface WebPackAnalysisResult {
-  duplicateFunctionCount: number;
-}
-
 const webpackChunkRule: NapiConfig = {
   rule: {
     pattern: {
@@ -21,13 +17,13 @@ const webpackChunkRule: NapiConfig = {
   }
 };
 
-export function createWebpackAnalyzer(): Analyzer<WebPackAnalysisResult | null> {
+export function createWebpackAnalyzer(): Analyzer {
   const seenHashes = new Set<string>();
   let duplicateFunctionCount = 0;
   let foundWebpack = false;
 
   return {
-    analyze(root) {
+    analyze(root, _script) {
       const webpackChunk = root.findAll(webpackChunkRule);
 
       if (webpackChunk.length === 0) {
@@ -64,11 +60,17 @@ export function createWebpackAnalyzer(): Analyzer<WebPackAnalysisResult | null> 
       }
     },
 
-    summary() {
+    async getResult() {
       if (!foundWebpack) {
-        return null;
+        return {};
       }
-      return {duplicateFunctionCount};
+
+      return {
+        bundlers: ['webpack'],
+        bundlerAnalysis: {
+          webpack: {duplicateFunctionCount}
+        }
+      };
     }
   };
 }
