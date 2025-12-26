@@ -6,7 +6,15 @@ import {join} from 'node:path';
 import {createHash} from 'node:crypto';
 import {pipeline} from 'node:stream/promises';
 import {Readable} from 'node:stream';
-import {ts, type NapiConfig, type SgNode} from '@ast-grep/napi';
+import {ts} from '@ast-grep/napi';
+import {
+  createWebpackAnalyzer,
+  type WebPackAnalysisResult
+} from './analyzers/webpack.js';
+import {
+  createCustomElementAnalyzer,
+  type CustomElementAnalysisResult
+} from './analyzers/customElement.js';
 
 const TEMP_DIR_PREFIX = 'runtime-js-scan-';
 
@@ -91,123 +99,9 @@ export async function extractScripts(
   return {scripts, tempDir};
 }
 
-export interface WebPackAnalysisResult {
-  duplicateFunctionCount: number;
-}
-
-export interface CustomElementAnalysisResult {
-  customElementCount: number;
-}
-
 export interface AnalysisResult {
   webpack: WebPackAnalysisResult | null;
   customElements: CustomElementAnalysisResult;
-}
-
-interface Analyzer<T> {
-  analyze(root: SgNode): void;
-  summary(): T;
-}
-
-const webpackChunkRule: NapiConfig = {
-  rule: {
-    pattern: {
-      context:
-        '(globalThis.$NAME = globalThis.$NAME || []).push([$KEYS, $OBJ])',
-      strictness: 'relaxed'
-    }
-  },
-  constraints: {
-    NAME: {
-      regex: '^webpackChunk_'
-    }
-  }
-};
-
-const customElementRule: NapiConfig = {
-  rule: {
-    any: [
-      {
-        pattern: {
-          context: 'customElements.define($_, $_)',
-          strictness: 'relaxed'
-        }
-      },
-      {
-        pattern: {
-          context: 'window.customElements.define($_, $_)',
-          strictness: 'relaxed'
-        }
-      }
-    ]
-  }
-};
-
-function createWebpackAnalyzer(): Analyzer<WebPackAnalysisResult | null> {
-  const seenHashes = new Set<string>();
-  let duplicateFunctionCount = 0;
-  let foundWebpack = false;
-
-  return {
-    analyze(root) {
-      const webpackChunk = root.findAll(webpackChunkRule);
-
-      if (webpackChunk.length === 0) {
-        return;
-      }
-
-      foundWebpack = true;
-
-      for (const chunk of webpackChunk) {
-        const obj = chunk.getMatch('OBJ');
-        if (!obj) {
-          continue;
-        }
-
-        for (const child of obj.children()) {
-          if (child.kind() !== 'pair') {
-            continue;
-          }
-
-          const value = child.field('value');
-          if (!value) {
-            continue;
-          }
-
-          const valueText = value.text();
-          const hash = createHash('sha256').update(valueText).digest('hex');
-
-          if (seenHashes.has(hash)) {
-            duplicateFunctionCount++;
-          } else {
-            seenHashes.add(hash);
-          }
-        }
-      }
-    },
-
-    summary() {
-      if (!foundWebpack) {
-        return null;
-      }
-      return {duplicateFunctionCount};
-    }
-  };
-}
-
-function createCustomElementAnalyzer(): Analyzer<CustomElementAnalysisResult> {
-  let customElementCount = 0;
-
-  return {
-    analyze(root) {
-      const customElements = root.findAll(customElementRule);
-      customElementCount += customElements.length;
-    },
-
-    summary() {
-      return {customElementCount};
-    }
-  };
 }
 
 export async function analyzeScripts(
