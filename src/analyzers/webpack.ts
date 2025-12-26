@@ -1,25 +1,36 @@
 import {createHash} from 'node:crypto';
 import {type NapiConfig} from '@ast-grep/napi';
-import {type Analyzer} from './types.js';
+import {type Analyzer} from '../types.js';
 
 const webpackChunkRule: NapiConfig = {
   rule: {
-    pattern: {
-      context:
-        '(globalThis.$NAME = globalThis.$NAME || []).push([$KEYS, $OBJ])',
-      strictness: 'relaxed'
-    }
+    any: [
+      {
+        pattern: {
+          context:
+            '(globalThis.$NAME = globalThis.$NAME || []).push([$KEYS, $OBJ])',
+          strictness: 'relaxed'
+        }
+      },
+      {
+        pattern: {
+          context: '(self.$NAME = self.$NAME || []).push([$KEYS, $OBJ])',
+          strictness: 'relaxed'
+        }
+      }
+    ]
   },
   constraints: {
     NAME: {
-      regex: '^webpackChunk_'
+      regex: '^webpackChunk'
     }
   }
 };
 
 export function createWebpackAnalyzer(): Analyzer {
-  const seenHashes = new Set<string>();
+  const seenHashes = new Map<string, number>();
   let duplicateFunctionCount = 0;
+  let duplicatedBytes = 0;
   let foundWebpack = false;
 
   return {
@@ -50,11 +61,14 @@ export function createWebpackAnalyzer(): Analyzer {
 
           const valueText = value.text();
           const hash = createHash('sha256').update(valueText).digest('hex');
+          const byteLength = Buffer.byteLength(valueText, 'utf8');
 
-          if (seenHashes.has(hash)) {
+          const existingByteLength = seenHashes.get(hash);
+          if (existingByteLength !== undefined) {
             duplicateFunctionCount++;
+            duplicatedBytes += existingByteLength;
           } else {
-            seenHashes.add(hash);
+            seenHashes.set(hash, byteLength);
           }
         }
       }
@@ -68,7 +82,7 @@ export function createWebpackAnalyzer(): Analyzer {
       return {
         bundlers: ['webpack'],
         bundlerAnalysis: {
-          webpack: {duplicateFunctionCount}
+          webpack: {duplicateFunctionCount, duplicatedBytes}
         }
       };
     }

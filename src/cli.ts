@@ -3,6 +3,14 @@ import {rm} from 'node:fs/promises';
 import * as prompts from '@clack/prompts';
 import {extractScripts, analyzeScripts} from './main.js';
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
+
 const args = parseArgs({
   options: {},
   allowPositionals: true
@@ -50,6 +58,9 @@ async function main() {
       prompts.log.info('Webpack Analysis');
       prompts.log.message(
         `  Duplicate functions: ${analysis.bundlerAnalysis.webpack.duplicateFunctionCount}`
+      );
+      prompts.log.message(
+        `  Duplicated bytes: ${formatBytes(analysis.bundlerAnalysis.webpack.duplicatedBytes)}`
       );
     }
 

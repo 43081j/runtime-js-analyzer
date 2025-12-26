@@ -1,9 +1,5 @@
 import {type NapiConfig} from '@ast-grep/napi';
-import {type Analyzer} from './types.js';
-
-export interface CustomElementAnalysisResult {
-  customElementCount: number;
-}
+import {type Analyzer} from '../types.js';
 
 const customElementRule: NapiConfig = {
   rule: {

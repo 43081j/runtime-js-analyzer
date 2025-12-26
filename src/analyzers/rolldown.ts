@@ -1,4 +1,4 @@
-import {type Analyzer} from './types.js';
+import {type Analyzer} from '../types.js';
 
 const rolldownRuntimePattern = /rolldown-runtime\.[a-zA-Z0-9]+\.mjs$/;
 
